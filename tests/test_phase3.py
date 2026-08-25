@@ -207,9 +207,13 @@ def test_client_auth_toggle(monkeypatch, tmp_path):
         def raise_for_status(self):
             pass
 
-    # Phase 1: anonymous -> plain requests.get is used
+    # Phase 1: anonymous -> the hardened module-level Session is used
+    # (client._active_session()); patch ITS .get. Patching the bare
+    # requests.get function misses every hardened-client call and would let
+    # a real network request escape.
     anon_hits = []
-    monkeypatch.setattr(client_mod.requests, "get",
+    anon_session = client_mod._active_session()
+    monkeypatch.setattr(anon_session, "get",
                         lambda url, **kw: anon_hits.append(url) or FakeResp())
     client_mod.fetch("https://www.zameen.com/x")
     assert anon_hits and anon_hits[0].endswith("/x")
