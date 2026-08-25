@@ -375,6 +375,8 @@ RENTALS_HTML_PATH = FIXTURES / "search_lahore_rentals.html"
 
 @pytest.fixture(scope="module")
 def rentals_result() -> SearchResult:
+    if not RENTALS_HTML_PATH.exists():
+        pytest.skip("fixtures/ are local-only (gitignored); capture pages first")
     return parse_search(RENTALS_HTML_PATH.read_text(encoding="utf-8"))
 
 
