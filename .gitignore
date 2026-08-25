@@ -1,0 +1,26 @@
+# --- secrets & personal state (NEVER commit/publish) ---
+data/
+*.session
+session_state.json
+cookies*.json
+firefox_cookies.json
+
+# --- captured pages: contain third-party (agent) PII; local-only ---
+# Tests auto-skip gracefully when fixtures are absent.
+fixtures/
+
+# --- python ---
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# --- tooling ---
+.pytest_cache/
+.smoke/
+
+# --- OS ---
+Thumbs.db
+.DS_Store

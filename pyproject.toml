@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/zameen_mcp/__init__.py"
+
+[project]
+name = "zameen-mcp"
+version = "0.2.0"
+description = "MCP server for researching property listings on Zameen.com (read-only + local watchlists)"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "zameen-mcp contributors" }]
+keywords = ["mcp", "zameen", "real-estate", "pakistan", "property", "research", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Office/Business :: Financial",
+]
+dependencies = [
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "fastmcp>=2",
+]
+
+[project.optional-dependencies]
+login = ["playwright>=1.45"]          # for the one-time browser login flow
+dev = ["pytest>=8", "playwright>=1.45"]
+
+[project.scripts]
+zameen-mcp = "zameen_mcp.server:main"
+zameen-mcp-login = "zameen_mcp.login:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zameen_mcp"]
