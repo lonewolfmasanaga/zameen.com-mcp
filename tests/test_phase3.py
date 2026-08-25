@@ -207,12 +207,31 @@ def test_client_auth_toggle(monkeypatch, tmp_path):
         def raise_for_status(self):
             pass
 
-    # Phase 1: anonymous -> plain requests.get is used
+    # Phase 1: anonymous -> the hardened module-level session is used
     anon_hits = []
-    monkeypatch.setattr(client_mod.requests, "get",
-                        lambda url, **kw: anon_hits.append(url) or FakeResp())
-    client_mod.fetch("https://www.zameen.com/x")
-    assert anon_hits and anon_hits[0].endswith("/x")
+
+    class FakeSession:
+        def get(self, url, **kw):
+            anon_hits.append(url)
+
+            class R:
+                status_code = 200
+                text = "<html></html>"
+                url = url
+
+                def raise_for_status(self):
+                    pass
+
+            return R()
+
+    monkeypatch.setattr(client_mod, "_HTTP_SESSION", FakeSession())
+    old_delay = client_mod.politeness_delay()
+    client_mod.set_politeness(0)
+    try:
+        client_mod.fetch("https://www.zameen.com/x")
+        assert anon_hits and anon_hits[0].endswith("/x")
+    finally:
+        client_mod.set_politeness(old_delay)
     assert client_mod.auth_enabled() is False
 
     # Phase 2: authenticated -> the Session object's .get is used instead
