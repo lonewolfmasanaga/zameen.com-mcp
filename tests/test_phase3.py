@@ -213,11 +213,12 @@ def test_client_auth_toggle(monkeypatch, tmp_path):
     class FakeSession:
         def get(self, url, **kw):
             anon_hits.append(url)
+            final_url = url
 
             class R:
                 status_code = 200
                 text = "<html></html>"
-                url = url
+                url = final_url
 
                 def raise_for_status(self):
                     pass
