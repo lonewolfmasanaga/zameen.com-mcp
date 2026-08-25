@@ -10,12 +10,15 @@
 ### MCP server for researching property listings on Zameen.com
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00A551.svg)](LICENSE)
+[![CI](https://github.com/lonewolfmasanaga/zameen.com-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/lonewolfmasanaga/zameen.com-mcp/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](https://www.python.org)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-7C3AED.svg)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/Tests-68%20passing-00A551.svg)](#development)
 
 **Verified / Titanium-agent filtering · local watchlists · listing details ·
 agent-message drafting — through 9 structured tools in any MCP client.**
+
+[Tool reference](docs/TOOLS.md) · [Deployment guide](docs/DEPLOYMENT.md) ·
+[Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 </div>
 

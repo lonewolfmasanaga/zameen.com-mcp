@@ -7,7 +7,7 @@ path = "src/zameen_mcp/__init__.py"
 
 [project]
 name = "zameen-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "MCP server for researching property listings on Zameen.com (read-only + local watchlists)"
 readme = "README.md"
 license = "MIT"
