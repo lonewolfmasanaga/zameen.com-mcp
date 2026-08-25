@@ -34,11 +34,28 @@ mcp = FastMCP("zameen")
 _MAX_PAGES = 3
 _PURPOSES = ("sale", "rent")
 _SORTS = ("price_asc", "price_desc", "date_desc")
+_LIMIT_MIN, _LIMIT_MAX = 1, 50
 
 
 def _json(payload) -> str:
     """Pretty JSON response body for MCP tool output."""
     return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+def _clamp_limit(limit, default: int = 10) -> int:
+    """Clamp a tool's ``limit`` argument into ``[_LIMIT_MIN, _LIMIT_MAX]``.
+
+    None / non-numeric values fall back to *default*; floats truncate via
+    :class:`int`; bools are treated as unset and return *default*.
+    Never raises.
+    """
+    try:
+        value = int(limit)
+    except (TypeError, ValueError):
+        return default
+    if isinstance(limit, bool):  # True/False are ints in Python; reject as unset
+        return default
+    return max(_LIMIT_MIN, min(_LIMIT_MAX, value))
 
 
 def _post_filter(
@@ -125,6 +142,7 @@ def search_properties(
     max_price_pkr) apply AFTER parsing over up to 3 result pages - these can
     express things Zameen's own UI cannot (e.g. verified listings only).
     min_beds/min_area_marla/keywords/sort are native site filters.
+    limit is clamped to 1..50 and echoed back in filters_applied.
     Example: search_properties(city="lahore", purpose="sale",
     property_type="houses", min_beds=4, verified_only=True,
     agent_tier="titanium", max_price_pkr=200000000).
@@ -150,6 +168,7 @@ def search_properties(
     if sort is not None and sort not in _SORTS:
         return _json({"error": f"sort must be one of {list(_SORTS)}"})
 
+    limit = _clamp_limit(limit)
     index = 0 if purpose_key == "sale" else 1
     filters_applied = {
         "city": city_key,
@@ -189,12 +208,13 @@ def search_properties(
     for l in kept:
         l.property_type, l.purpose = type_key, purpose_key
 
+    page_of = kept[:limit]
     return _json({
         "total_results": total,
-        "returned": len(kept[: max(limit, 0)]),
+        "returned": len(page_of),
         "pages_fetched": pages_fetched,
         "filters_applied": filters_applied,
-        "listings": [l.to_dict() for l in kept[: max(limit, 0)]],
+        "listings": [l.to_dict() for l in page_of],
     })
 
 
@@ -220,10 +240,13 @@ def list_supported_cities() -> str:
     """List verified city slugs and property types usable by search_properties."""
     from . import client
 
-    return _json({
-        "cities": dict(sorted(client.CITY_SLUGS.items())),
-        "property_types": sorted(client.TYPE_PATHS),
-    })
+    try:
+        return _json({
+            "cities": dict(sorted(client.CITY_SLUGS.items())),
+            "property_types": sorted(client.TYPE_PATHS),
+        })
+    except Exception as exc:  # noqa: BLE001 - keep every tool JSON-shaped
+        return _json({"error": f"city listing failed: {exc}"})
 
 
 # --------------------------------------------------------------------------
@@ -311,7 +334,7 @@ def add_watch(name: str, city: str, purpose: str = "sale",
                           "watch_not_created": True})
     try:
         entry = watchlist.add(name, criteria, seed_ids=seed_ids)
-    except ValueError as exc:
+    except Exception as exc:  # noqa: BLE001 - ValueError/OSError -> JSON shape
         return _json({"error": str(exc)})
     return _json({"created": name, "criteria": entry["criteria"],
                   "seeded_listings": seeded_count,
@@ -326,20 +349,27 @@ def check_watch(name: str, limit: int = 20) -> str:
     """
     from . import watchlist
 
-    entry = watchlist.get(name)
+    entry = None
+    try:
+        entry = watchlist.get(name)
+    except Exception as exc:  # noqa: BLE001 - unreadable store -> JSON error
+        return _json({"error": f"watch lookup failed: {exc}", "watch": name})
     if entry is None:
-        known = sorted(watchlist.names())
+        try:
+            known = sorted(watchlist.names())
+        except Exception:  # noqa: BLE001 - names() best-effort only
+            known = []
         return _json({"error": f"no watch named {name!r}",
                       "existing_watches": known})
     criteria = entry["criteria"]
+    limit = _clamp_limit(limit, default=20)
     try:
         result, kept = _run_watch_search(criteria)
+        current_ids = [l.listing_id for l in kept]
+        new_ids = watchlist.diff(entry.get("last_ids", []), current_ids)
+        watchlist.record_check(name, current_ids)
     except Exception as exc:  # noqa: BLE001
         return _json({"error": f"search failed: {exc}", "watch": name})
-
-    current_ids = [l.listing_id for l in kept]
-    new_ids = watchlist.diff(entry.get("last_ids", []), current_ids)
-    watchlist.record_check(name, current_ids)
 
     new_listings = [l.to_dict() for l in kept if l.listing_id in set(new_ids)]
     return _json({
@@ -347,7 +377,7 @@ def check_watch(name: str, limit: int = 20) -> str:
         "total_results": result.total_results,
         "matching_now": len(kept),
         "new_since_last_check": len(new_listings),
-        "listings": new_listings[: max(limit, 0)],
+        "listings": new_listings[:limit],
     })
 
 
@@ -356,7 +386,10 @@ def remove_watch(name: str) -> str:
     """Delete a local watchlist by name."""
     from . import watchlist
 
-    return _json({"removed": watchlist.remove(name)})
+    try:
+        return _json({"removed": watchlist.remove(name)})
+    except Exception as exc:  # noqa: BLE001 - unreadable store -> JSON error
+        return _json({"error": f"watch removal failed: {exc}", "watch": name})
 
 
 @mcp.tool()
@@ -364,7 +397,10 @@ def list_watches() -> str:
     """List local watchlists with their criteria and last-check times."""
     from . import watchlist
 
-    return _json({"watches": watchlist.names()})
+    try:
+        return _json({"watches": watchlist.names()})
+    except Exception as exc:  # noqa: BLE001
+        return _json({"error": f"watch listing failed: {exc}"})
 
 
 @mcp.tool()
@@ -405,7 +441,10 @@ def account_status() -> str:
     """
     from . import session as _session
 
-    return _json(_session.status())
+    try:
+        return _json(_session.status())
+    except Exception as exc:  # noqa: BLE001 - corrupt store -> JSON error
+        return _json({"logged_in": False, "error": f"status failed: {exc}"})
 
 
 def main() -> None:

@@ -83,9 +83,16 @@ _LISTING_FIELDS = (
 )
 
 
-def _soup(html: str) -> BeautifulSoup:
-    """Parse *html* with lxml, degrading gracefully on empty input."""
-    return BeautifulSoup(html or "", "lxml")
+def _soup(html) -> BeautifulSoup:
+    """Parse *html* with lxml, degrading gracefully on unusable input.
+
+    ``None``, empty strings and non-string values (bytes, numbers — usually a
+    caller bug such as ``response.content`` instead of ``response.text``)
+    parse as an empty document rather than raising.
+    """
+    if not isinstance(html, str):
+        return BeautifulSoup("", "lxml")
+    return BeautifulSoup(html, "lxml")
 
 
 def _parse_price_pkr(price_text: str) -> Optional[int]:
@@ -98,7 +105,7 @@ def _parse_price_pkr(price_text: str) -> Optional[int]:
     >>> _parse_price_pkr("PKR 68 Thousand")
     68000
     """
-    if not price_text:
+    if not isinstance(price_text, str) or not price_text:
         return None
     match = _PRICE_RE.search(price_text.replace(",", ""))
     if not match:
@@ -117,7 +124,7 @@ def _parse_area(area_text: str) -> tuple[Optional[float], Optional[str]]:
     >>> _parse_area("1.3 Kanal")
     (1.3, 'Kanal')
     """
-    if not area_text:
+    if not isinstance(area_text, str) or not area_text:
         return None, None
     match = _AREA_RE.search(area_text)
     if not match:
@@ -146,7 +153,12 @@ def _int_prefix(text: str) -> Optional[int]:
 
 
 def _find_label(soup_or_node, label: str):
-    """First element whose ``aria-label`` equals *label* (case-insensitive)."""
+    """First element whose ``aria-label`` equals *label* (case-insensitive).
+
+    Returns ``None`` for a missing node or empty label instead of raising.
+    """
+    if soup_or_node is None or not isinstance(label, str) or not label.strip():
+        return None
     target = label.strip().lower()
     return soup_or_node.find(
         attrs={"aria-label": lambda v: v and v.strip().lower() == target}
@@ -311,16 +323,20 @@ def parse_search(html: str) -> SearchResult:
     if h1 is not None:
         m = _TOTAL_RE.search(h1.get_text(" ", strip=True))
         if m:
-            total_results = int(m.group(1).replace(",", ""))
+            try:  # e.g. a stripped h1 leaving only commas/digits garbage
+                total_results = int(m.group(1).replace(",", ""))
+            except ValueError:
+                total_results = None
 
     listings = [_card_to_listing(card) for card in _card_nodes(soup)]
 
     next_anchor = soup.find(
         "a", attrs={"title": lambda t: t and t.strip().lower() == "next"}
     )
+    next_href = next_anchor.get("href") if next_anchor is not None else None
     next_page_url = (
-        urljoin(_BASE_URL + "/", next_anchor["href"].lstrip("/"))
-        if next_anchor is not None and next_anchor.get("href")
+        urljoin(_BASE_URL + "/", str(next_href).lstrip("/"))
+        if isinstance(next_href, str) and next_href.strip()
         else None
     )
 
@@ -347,8 +363,11 @@ def parse_listing_detail(html: str, url: str = "") -> dict:
     soup = _soup(html)
 
     canonical = soup.find("link", rel=lambda v: v and "canonical" in v)
-    canonical_url = canonical.get("href", "").strip() if canonical else ""
-    resolved_url = url or canonical_url
+    canonical_url = canonical.get("href") if canonical else None
+    if not isinstance(canonical_url, str):
+        canonical_url = ""
+    canonical_url = canonical_url.strip()
+    resolved_url = (url if isinstance(url, str) else "") or canonical_url
 
     listing_id = ""
     m = _PROPERTY_HREF_RE.search(resolved_url)
