@@ -1,8 +1,34 @@
-# zameen-mcp
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)"
+          srcset="https://raw.githubusercontent.com/lonewolfmasanaga/zameen.com-mcp/main/assets/zameen-logo-white.svg">
+  <img src="https://raw.githubusercontent.com/lonewolfmasanaga/zameen.com-mcp/main/assets/zameen-logo.png"
+       alt="zameen.com" width="360">
+</picture>
+
+### MCP server for researching property listings on Zameen.com
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-00A551.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](https://www.python.org)
+[![MCP](https://img.shields.io/badge/Protocol-MCP-7C3AED.svg)](https://modelcontextprotocol.io)
+[![Tests](https://img.shields.io/badge/Tests-68%20passing-00A551.svg)](#development)
+
+**Verified / Titanium-agent filtering · local watchlists · listing details ·
+agent-message drafting — through 9 structured tools in any MCP client.**
+
+</div>
+
+---
 
 An MCP (Model Context Protocol) server for researching property listings on
 [Zameen.com](https://www.zameen.com) — Pakistan's largest real estate portal —
 through structured tools instead of fragile screen scraping.
+
+> **Trademark notice:** "Zameen" and the Zameen.com logo are trademarks of
+> Zameen.com (EMPG). They are used here solely to identify the service this
+> tool interfaces with. This project is unaffiliated with, and not endorsed
+> by, Zameen.com.
 
 Works with any MCP client: Claude Desktop, Hermes Agent, Cursor, and others.
 
